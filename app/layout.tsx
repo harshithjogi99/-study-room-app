@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import HeaderAuth from "./HeaderAuth";
+import ThemeToggle from "./ThemeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,6 +20,18 @@ export const metadata: Metadata = {
   description: "Join virtual study rooms with others",
 };
 
+// Runs before paint so the page never flashes the wrong theme on load
+const themeInitScript = `
+(function() {
+  try {
+    var saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,10 +40,14 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        </head>
         <body
           className={`${geistSans.variable} ${geistMono.variable} min-h-full flex flex-col`}
         >
           <header className="flex justify-end items-center p-4 gap-4 h-16">
+            <ThemeToggle />
             <HeaderAuth />
           </header>
           {children}

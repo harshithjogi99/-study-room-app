@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  rooms        Room[]        @relation("RoomCreator")
+  participants Participant[]
+}
+
+model Room {
+  id            String   @id @default(cuid())
+  name          String
+  code          String?  @unique
+  locked        Boolean  @default(false)
+  bannedUserIds String[] @default([])
+  createdAt     DateTime @default(now())
+
+  creator   User   @relation("RoomCreator", fields: [creatorId], references: [id])
+  creatorId String
+
+  participants Participant[]
+  notes        Note[]
+  messages     ChatMessage[]
+}
+
+model Participant {
+  id       String   @id @default(cuid())
+  joinedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  room   Room   @relation(fields: [roomId], references: [id])
+  roomId String
+
+  @@unique([userId, roomId])
+}
+
+model Note {
+  id            String   @id @default(cuid())
+  roomId        String
+  url           String
+  fileName      String
+  uploadedBy    String
+  summary       String?
+  quiz          Json?
+  quizzes Quiz[]
+  flashcards    Json?
+  extractedText String?
+  createdAt     DateTime @default(now())
+
+  room          Room     @relation(fields: [roomId], references: [id])
+}
+model ChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  userName  String
+  content   String
+  createdAt DateTime @default(now())
+
+  room      Room     @relation(fields: [roomId], references: [id])
+}
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  noteId    String
+  roomId    String
+  score     Int
+  total     Int
+  createdAt DateTime @default(now())
+
+  results   QuestionResult[]
+}
+
+model QuestionResult {
+  id            String   @id @default(cuid())
+  attemptId     String
+  userId        String   // copied from the attempt so the dashboard can query by user directly
+  noteId        String
+  question      String   // snapshot of the question text (Note.quiz questions have no IDs)
+  topic         String?  // null for quizzes generated before tagging existed
+  selectedIndex Int
+  correctIndex  Int
+  isCorrect     Boolean
+  createdAt     DateTime @default(now())
+
+  attempt       QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([userId, topic])
+  @@index([attemptId])
+}
+model TutorMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  role      String   // "user" or "ai"
+  content   String
+  createdAt DateTime @default(now())
+}
+model Quiz {
+  id        String     @id @default(cuid())
+  noteId    String
+  note      Note       @relation(fields: [noteId], references: [id])
+  createdAt DateTime   @default(now())
+  questions Question[]
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  quizId        String
+  quiz          Quiz     @relation(fields: [quizId], references: [id])
+  type          String   // "mcq" | "short"
+  prompt        String
+  options       Json?    // array of strings, only for "mcq"
+  correctAnswer String
+}
